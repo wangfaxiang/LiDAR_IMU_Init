@@ -3,4 +3,6 @@ launch/__pycache__/*
 build/*
 log/*
 install/*
-
+Log/
+python_code/__pycache__/*
+__pycache__/*
