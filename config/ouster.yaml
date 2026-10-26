@@ -7,23 +7,23 @@ common:
 preprocess:
     lidar_type: 3                # Ouster LiDAR
     scan_line: 32
-    blind: 2
+    blind: 2.0
     feature_extract_en: false
 
 initialization:
     cut_frame_num: 4 # must be positive integer
     orig_odom_freq: 10
     mean_acc_norm: 9.805
-    online_refine_time: 15
-    data_accum_length: 700
+    online_refine_time: 15.0
+    data_accum_length: 700.0
     Rot_LI_cov: [ 0.00005, 0.00005, 0.00005 ]
     Trans_LI_cov: [ 0.0001, 0.0001, 0.0001 ]
 
 mapping:
     filter_size_surf: 0.05
     filter_size_map: 0.15
-    gyr_cov: 40
-    acc_cov: 2
+    gyr_cov: 40.0
+    acc_cov: 2.0
     b_acc_cov: 0.0001
     b_gyr_cov: 0.0001
     det_range: 150.0

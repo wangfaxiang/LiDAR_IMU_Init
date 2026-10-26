@@ -5,7 +5,7 @@ common:
 preprocess:
     lidar_type: 5                # Hesai PandarXT
     scan_line: 32
-    blind: 3
+    blind: 3.0
     feature_extract_en: false
 
 initialization:
@@ -13,15 +13,15 @@ initialization:
     orig_odom_freq: 10
     mean_acc_norm: 9.805
     online_refine_time: 15.0
-    data_accum_length: 300
+    data_accum_length: 300.0
     Rot_LI_cov: [ 0.00005, 0.00005, 0.00005 ]
     Trans_LI_cov: [ 0.00001, 0.00001, 0.00000001 ]
 
 mapping:
     filter_size_surf: 0.1
     filter_size_map: 0.1
-    gyr_cov: 20
-    acc_cov: 2
+    gyr_cov: 20.0
+    acc_cov: 2.0
     b_acc_cov: 0.0001
     b_gyr_cov: 0.0001
     det_range: 120.0

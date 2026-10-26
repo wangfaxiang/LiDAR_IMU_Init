@@ -1,11 +1,11 @@
 common:
-    lid_topic:  "/velodyne_points"
+    lid_topic:  "/point_cloud_raw"
     imu_topic:  "/imu/data"
 
 preprocess:
     lidar_type: 2                # Velodyne LiDAR
     scan_line: 16
-    blind: 2
+    blind: 2.0
     feature_extract_en: false
 
 initialization:
@@ -13,7 +13,7 @@ initialization:
     orig_odom_freq: 10
     mean_acc_norm: 9.81 # 1: for livox built-in IMU
     online_refine_time: 15.0
-    data_accum_length: 800
+    data_accum_length: 800.0
     Rot_LI_cov: [ 0.00005, 0.00005, 0.00005 ]
     Trans_LI_cov: [ 0.0001, 0.0001, 0.0001 ]
 
