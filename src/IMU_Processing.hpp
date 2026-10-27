@@ -65,6 +65,7 @@ class ImuProcess
   V3D cov_bias_acc;
   double first_lidar_time;
   int    lidar_type;
+  double lidar_spin_freq = 10.0; // spinning-LiDAR rotation frequency (Hz) for LiDAR-only undistortion
   bool   imu_en;
   bool LI_init_done = false;
   double IMU_mean_acc_norm;
@@ -242,22 +243,30 @@ void ImuProcess::Forward_propagation_without_imu(const MeasureGroup &meas, State
     /** Position Propagation **/
     state_inout.pos_end += state_inout.vel_end * dt;
 
-    /**CV model： un-distort pcl using linear interpolation **/
+    /**CV model： un-distort pcl **/
     if(lidar_type != L515){
+        // In LiDAR-only mode bias_g is never estimated (stays zero), so the
+        // original rotation term is a no-op and the translation term feeds the
+        // noisy estimated velocity back into the point cloud, causing
+        // self-excited drift even when static. For spinning LiDARs use the
+        // constant scan rotation about the sensor z-axis and drop the
+        // translation term to break the feedback loop.
+        bool is_spinning = (lidar_type == VELO || lidar_type == OUSTER ||
+                            lidar_type == PANDAR || lidar_type == ROBOSENSE);
+        V3D angvel_undist = Zero3d;
+        if (is_spinning)
+            angvel_undist = V3D(0.0, 0.0, -2.0 * M_PI * lidar_spin_freq);
+
         auto it_pcl = pcl_out.points.end() - 1;
         double dt_j = 0.0;
         for(; it_pcl != pcl_out.points.begin(); it_pcl --)
         {
-            dt_j= pcl_end_offset_time - it_pcl->curvature/double(1000);
-            M3D R_jk(Exp(state_inout.bias_g, - dt_j));
+            dt_j = pcl_end_offset_time - it_pcl->curvature/double(1000);
+            M3D R_jk(Exp(angvel_undist, -dt_j));
             V3D P_j(it_pcl->x, it_pcl->y, it_pcl->z);
-            // Using rotation and translation to un-distort points
-            V3D p_jk;
-            p_jk = - state_inout.rot_end.transpose() * state_inout.vel_end * dt_j;
+            V3D P_compensate = R_jk * P_j;
 
-            V3D P_compensate =  R_jk * P_j + p_jk;
-
-            /// save Undistorted points and their rotation
+            /// save Undistorted points
             it_pcl->x = P_compensate(0);
             it_pcl->y = P_compensate(1);
             it_pcl->z = P_compensate(2);

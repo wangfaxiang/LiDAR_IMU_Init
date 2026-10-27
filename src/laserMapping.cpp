@@ -735,6 +735,8 @@ int main(int argc, char **argv) {
     g_logger = node->get_logger();
     g_tf_broadcaster = std::make_shared<tf2_ros::TransformBroadcaster>(node);
 
+    double lidar_spin_freq = 10.0;
+
     PARAM(int, "max_iteration", NUM_MAX_ITERATIONS, 4);
     PARAM(int, "point_filter_num", p_pre->point_filter_num, 2);
     PARAM(string, "map_file_path", map_file_path, "");
@@ -753,6 +755,7 @@ int main(int argc, char **argv) {
     PARAM(int, "preprocess.lidar_type", lidar_type, AVIA);
     PARAM(int, "preprocess.scan_line", p_pre->N_SCANS, 16);
     PARAM(bool, "preprocess.feature_extract_en", p_pre->feature_enabled, false);
+    PARAM(double, "preprocess.lidar_spin_freq", lidar_spin_freq, 10.0);
     PARAM(bool, "initialization.cut_frame", cut_frame, true);
     PARAM(int, "initialization.cut_frame_num", cut_frame_num, 1);
     PARAM(int, "initialization.orig_odom_freq", orig_odom_freq, 10);
@@ -799,6 +802,7 @@ int main(int argc, char **argv) {
     shared_ptr<ImuProcess> p_imu(new ImuProcess());
 
     p_imu->lidar_type = p_pre->lidar_type = lidar_type;
+    p_imu->lidar_spin_freq = lidar_spin_freq;
     p_imu->imu_en = imu_en;
     p_imu->LI_init_done = false;
     p_imu->set_gyr_cov(V3D(gyr_cov, gyr_cov, gyr_cov));
