@@ -226,6 +226,8 @@ public:
 
     void plot_result();
 
+    void plot_ang_vel_compare(const deque<CalibState> &imu_before, const deque<CalibState> &lidar_before);
+
     void push_ALL_IMU_CalibState(const sensor_msgs::msg::Imu::ConstSharedPtr &msg, const double &mean_acc_norm);
 
     void push_IMU_CalibState(const V3D &omg, const V3D &acc, const double &timestamp);

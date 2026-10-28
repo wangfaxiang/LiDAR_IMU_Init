@@ -664,6 +664,7 @@ void publish_path(const rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pubPat
     jjj++;
     if (jjj % 5 == 0) // if path is too large, the RVIZ will crash
     {
+        path.header.stamp = msg_body_pose.header.stamp;
         path.poses.push_back(msg_body_pose);
         pubPath->publish(path);
     }

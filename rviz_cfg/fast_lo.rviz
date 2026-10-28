@@ -194,11 +194,11 @@ Visualization Manager:
       Radius: 0.10000000149011612
       Reference Frame: <Fixed Frame>
       Value: false
-    - Alpha: 0
+    - Alpha: 1
       Buffer Length: 2
       Class: rviz_default_plugins/Path
       Color: 25; 255; 255
-      Enabled: false
+      Enabled: true
       Head Diameter: 0
       Head Length: 0
       Length: 0.6000000238418579

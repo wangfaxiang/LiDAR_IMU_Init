@@ -170,7 +170,7 @@ Visualization Manager:
       Reference Frame: <Fixed Frame>
       Show Trail: false
       Value: true
-    - Alpha: 0
+    - Alpha: 1
       Buffer Length: 2
       Class: rviz_default_plugins/Path
       Color: 25; 255; 255

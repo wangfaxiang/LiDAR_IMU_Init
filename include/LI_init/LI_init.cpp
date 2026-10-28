@@ -1,5 +1,26 @@
 #include "LI_init.h"
 
+#include <cstdlib>
+
+// Defined in laserMapping.cpp; set true by the SIGINT handler on Ctrl+C.
+extern bool flg_exit;
+
+namespace {
+// Close all open matplotlib figure windows. Called on program exit so that no
+// chart windows linger after the node shuts down.
+void close_all_figures() {
+    if (!Py_IsInitialized())
+        return;
+    PyObject *args = PyTuple_New(1);
+    PyTuple_SetItem(args, 0, PyUnicode_FromString("all"));
+    PyObject *res = PyObject_CallObject(
+            matplotlibcpp::detail::_interpreter::get().s_python_function_close, args);
+    if (res)
+        Py_DECREF(res);
+    Py_DECREF(args);
+}
+}
+
 /*
 Description: LI-Init: a temporal-spatial lidar-inertial initialization package
 Author: Fangcheng Zhu
@@ -8,6 +29,11 @@ email: zhufc@connect.hku.hk
 
 LI_Init::LI_Init()
         : time_delay_IMU_wtr_Lidar(0.0), time_lag_1(0.0), time_lag_2(0.0), lag_IMU_wtr_Lidar(0) {
+    static bool atexit_registered = false;
+    if (!atexit_registered) {
+        atexit_registered = true;
+        std::atexit(close_all_figures);
+    }
     fout_LiDAR_meas.open(FILE_DIR("LiDAR_meas.txt"), ios::out);
     fout_IMU_meas.open(FILE_DIR("IMU_meas.txt"), ios::out);
     fout_before_filt_IMU.open(FILE_DIR("IMU_before_filter.txt"), ios::out);
@@ -100,8 +126,6 @@ void LI_Init::downsample_interpolate_IMU(const double &move_start_time) {
         IMU_state_group_ALL[i].linear_acc = acc_real;
     }
 
-
-
     //Down-sample and interpolation，Fig.4 in the paper
     for (int i = 0; i < Lidar_state_group.size(); i++) {
         for (int j = 1; j < IMU_state_group_ALL.size(); j++) {
@@ -122,6 +146,52 @@ void LI_Init::downsample_interpolate_IMU(const double &move_start_time) {
         }
     }
 
+}
+
+void LI_Init::plot_ang_vel_compare(const deque<CalibState> &imu_before, const deque<CalibState> &lidar_before) {
+    vector<double> t_imu_b, norm_imu_b, t_lidar_b, norm_lidar_b;
+    vector<double> t_imu_a, norm_imu_a, t_lidar_a, norm_lidar_a;
+
+    auto extract = [](const deque<CalibState> &seq, vector<double> &t, vector<double> &n) {
+        if (!seq.empty()) {
+            double t0 = seq.front().timeStamp;
+            for (auto &s : seq) {
+                t.push_back(s.timeStamp - t0);
+                n.push_back(s.ang_vel.norm());
+            }
+        }
+    };
+
+    extract(imu_before, t_imu_b, norm_imu_b);
+    extract(lidar_before, t_lidar_b, norm_lidar_b);
+    extract(IMU_state_group, t_imu_a, norm_imu_a);
+    extract(Lidar_state_group, t_lidar_a, norm_lidar_a);
+
+    long fig_before = plt::figure();
+    plt::named_plot("LiDAR", t_lidar_b, norm_lidar_b, "b");
+    plt::named_plot("IMU", t_imu_b, norm_imu_b, "orange");
+    plt::title("Before coarse time compensation");
+    plt::xlabel("Time (s)");
+    plt::ylabel("Angular velocity norm (rad/s)");
+    plt::legend();
+    plt::grid(true);
+
+    long fig_after = plt::figure();
+    plt::named_plot("LiDAR", t_lidar_a, norm_lidar_a, "b");
+    plt::named_plot("IMU", t_imu_a, norm_imu_a, "orange");
+    plt::title("After coarse time compensation");
+    plt::xlabel("Time (s)");
+    plt::ylabel("Angular velocity norm (rad/s)");
+    plt::legend();
+    plt::grid(true);
+
+    plt::show(false);
+
+    // Pump GUI events to keep the windows interactive (zoom/pan) until the
+    // user closes both windows or Ctrl+C (flg_exit) is received.
+    while ((plt::fignum_exists(fig_before) || plt::fignum_exists(fig_after)) && !flg_exit) {
+        plt::pause(0.1);
+    }
 }
 
 void LI_Init::central_diff() {
@@ -158,6 +228,7 @@ void LI_Init::central_diff() {
 }
 
 void LI_Init::xcorr_temporal_init(const double &odom_freq) {
+
     int N = IMU_state_group.size();
     //Calculate mean value of IMU and LiDAR angular velocity
     double mean_IMU_ang_vel = 0, mean_LiDAR_ang_vel = 0;
@@ -190,6 +261,9 @@ void LI_Init::xcorr_temporal_init(const double &odom_freq) {
 
     time_lag_1 = lag_IMU_wtr_Lidar / odom_freq;
     cout << "Max Cross-correlation: IMU lag wtr Lidar : " << -lag_IMU_wtr_Lidar << endl;
+    cout << "里程计频率 odom_freq = " << odom_freq << " Hz" << endl;
+    cout << "IMU 相对 LiDAR 的滞后帧数 lag_IMU_wtr_Lidar = " << lag_IMU_wtr_Lidar << endl;
+    cout << "第一阶段粗略时间延迟 time_lag_1 = " << time_lag_1 << " s" << endl;
 }
 
 void LI_Init::IMU_time_compensate(const double &lag_time, const bool &is_discard) {
@@ -603,7 +677,15 @@ void LI_Init::LI_Initialization(int &orig_odom_freq, int &cut_frame_num, double 
     cut_sequence_tail();
 
     xcorr_temporal_init(orig_odom_freq * cut_frame_num);
+
+    // Snapshot sequences before coarse time compensation for comparison
+    deque<CalibState> IMU_before_comp = IMU_state_group;
+    deque<CalibState> Lidar_before_comp = Lidar_state_group;
+
     IMU_time_compensate(get_lag_time_1(), false);
+
+    // Plot before/after coarse compensation in two windows (non-blocking)
+    plot_ang_vel_compare(IMU_before_comp, Lidar_before_comp);
 
     central_diff();
 
